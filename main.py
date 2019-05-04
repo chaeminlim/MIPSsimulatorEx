@@ -190,7 +190,7 @@ if __name__ == "__main__":
                 offset = getOffset(value)
                 Registers[getRt(value)] = alu.ALU_main(rs, offset, control, z)
 
-            elif opCode == "lui":
+            elif opCode == "lui" :
                 control = 0x1
                 offset = getOffset(value)
                 Registers[getRt(value)] = alu.ALU_main(offset, 16, control, z)
