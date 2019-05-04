@@ -5,21 +5,17 @@ class ALU:
         c32 = (c >> 2) & 0x3
         c10 = c & 0x3
         if c32 == 0:
-            print("shiftoperation 수행")
             ret = self.shiftOperation(x, y, c10)
 
         elif c32 == 1:
-            print("checkSetless 수행")
             ret = self.checkSetless(x, y)
 
         elif c32 == 2:
-            print("addsubstract 수행")
             ret = self.addSubstract(x, y, c10)
             S = ret
             Z = self.checkZero(S)
 
         elif c32 == 3:
-            print("logicOperation 수행")
             ret = self.logicOperation(x, y, c10)
 
         return ret

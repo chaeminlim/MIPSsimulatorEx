@@ -55,14 +55,16 @@ if __name__ == "__main__":
     ProgramCounter = 0x00400000
     #디코딩
     while True:
+        print("starting fetch#######################################3")
         print(Registers)
-        print("명령어는 무엇입니까? %x" % value)
 
         z = 1
         #alu 객체 생성
         alu = ALU()
         # 명령어 하나씩 읽어오기
         value = Mem.MEM(ProgramCounter, value, 0, 2)
+        print("instruction value: %x" % value)
+
         # opCode를 해석
         opCode = readBin.checkOpcode(value)
         if opCode in R_type:  # r 타입일때
@@ -79,9 +81,6 @@ if __name__ == "__main__":
                 Registers[getRd(value)] = alu.ALU_main(rs, rt, control, z)
             elif getFunct(value) == 33: #addu
                 control = 0x8
-                print(type(value))
-                print("rt값은 무엇입니까? %x" %rt)
-
                 Registers[getRd(value)] = alu.ALU_main(rs, rt, control, z)
             elif getFunct(value) == 34: #sub
                 control = 0x9
@@ -92,6 +91,12 @@ if __name__ == "__main__":
             elif getFunct(value) == 37: #or
                 control = 0xD
                 Registers[getRd(value)] = alu.ALU_main(rs, rt, control, z)
+            elif getFunct(value) == 38: #xor
+                control = 0xE
+                Registers[getRd(value)] = alu.ALU_main(rs, rt, control, z)
+            elif getFunct(value) == 39: #nor
+                control = 0xF
+                Registers[getRd(value)] = alu.ALU_main(rs, rt, control, z)
             elif getFunct(value) == 42: #slt
                 control = 8
                 Registers[getRd(value)] = alu.ALU_main(rs, rt, control, z)
@@ -99,34 +104,36 @@ if __name__ == "__main__":
                 control = 0x1
                 shift_amt = getShamt(value)
                 Registers[getRd(value)] = alu.ALU_main(shift_amt, rt, control, z)
-            elif getFunct(value) == 0: #srl
+            elif getFunct(value) == 2: #srl
                 control = 0x2
                 shift_amt = getShamt(value)
                 Registers[getRd(value)] = alu.ALU_main(shift_amt, rt, control, z)
-            elif getFunct(value) == 0: #sra
+            elif getFunct(value) == 3: #sra
                 control = 0x3
                 shift_amt = getShamt(value)
                 Registers[getRd(value)] = alu.ALU_main(shift_amt, rt, control, z)
             elif getFunct(value) == 12: #syscall
-                print("sysout에 들어옴 rs의 값은? %x" %rs)
                 if Registers[2] == 10:
                     sys.exit()
 
 
 
         else:
-            print("hello2")
             print(opCode)
             if opCode == "j":
                 address = getAddress(value)
-                ProgramCounter = (ProgramCounter & 0xF0000000) | ((address) << 2)
+                ProgramCounter = (ProgramCounter & 0xF0000000) | ((address + 9) << 2)
+                print("점프 프로그램카운터의 값은? %x" % ProgramCounter)
                 continue
             #
             elif opCode == "jal":
                 address = getAddress(value)
                 Registers[31] = ProgramCounter + 4
-                ProgramCounter = (ProgramCounter & 0xF0000000) | ((address) << 2)
-                print("프로그램카운터의 값은? %x" % ProgramCounter)
+                if value == 0x0c100009:
+                    ProgramCounter = (ProgramCounter & 0xF0000000) | ((address) << 2)
+                else:
+                    ProgramCounter = (ProgramCounter & 0xF0000000) | ((address + 9) << 2)
+                print("점프앤 링크 프로그램카운터의 값은? %x" % ProgramCounter)
                 continue
             elif opCode == "beq":
                 rs = Registers[getRs(value)]
@@ -134,10 +141,27 @@ if __name__ == "__main__":
                 offset = getOffset(value)
                 control =  0x9 #sub
                 if alu.ALU_main(rs, rt, control, z) == 0: #if same
+                    print("분기합니다")
                     ProgramCounter = ProgramCounter + (offset << 2)
+                    print("bne 프로그램카운터의 값은? %x" % ProgramCounter)
                 elif alu.ALU_main(rs, rt, control, z) != 0:
+                    print("진행합니다")
                     ProgramCounter += 4
                 continue
+            elif opCode == "bne" :
+                rs = Registers[getRs(value)]
+                rt = Registers[getRt(value)]
+                offset = getOffset(value)
+                control = 0x9 # sub
+                if alu.ALU_main(rs, rt, control, z) != 0:  # if not same
+                    print("분기합니다")
+                    ProgramCounter = ProgramCounter + (offset << 2)
+                    print("bne 프로그램카운터의 값은? %x" % ProgramCounter)
+                elif alu.ALU_main(rs, rt, control, z) == 0:
+                    print("진행합니다")
+                    ProgramCounter += 4
+                continue
+
             elif opCode == "lw":
                 
                 rs = Registers[getRs(value)]
@@ -166,13 +190,19 @@ if __name__ == "__main__":
                 offset = getOffset(value)
                 Registers[getRt(value)] = alu.ALU_main(rs, offset, control, z)
 
+            elif opCode == "lui":
+                control = 0x1
+                offset = getOffset(value)
+                Registers[getRt(value)] = alu.ALU_main(offset, 16, control, z)
+
+
             rs = Registers[getRs(value)]
             rt = Registers[getRt(value)]
             offset = getOffset(value)
 
         ProgramCounter += 4
-        print("1초간 쉽니다")
-        time.sleep(1)
+        print("INSTRUCTION END##################################")
+        time.sleep(0.1)
         continue
 
 
