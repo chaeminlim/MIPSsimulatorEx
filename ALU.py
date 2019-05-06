@@ -25,41 +25,31 @@ class ALU:
 
     def logicOperation(self, x, y, c10):
         if c10 < 0 or c10 > 3:
-            print("오류")
             self.EndFunc()
 
         if c10 == 0:
-            print("AND")
             return x & y
         elif c10 == 1:
-            print("OR")
             return x | y
         elif c10 == 2:
-            print("XOR")
             return x ^ y
         elif c10 == 3:
-            print("NOR")
             return ~(x | y)
 
     def shiftOperation(self, v, y, c):
 
         v = v & 0x001F # 5bit
         if c < 0 or c > 3:
-            print("error int shift operation")
             self.EndFunc()
         if c == 0:
-            print("no shift")
             ret = y
         elif c == 1:
-            print("sll")
             y = y << v
             ret = y
         elif c == 2:
-            print("srl")
             y = y >> v
             ret = y
         elif c == 3:
-            print("sra")
             msb = y
             msb = msb >> 31
             if msb == 1:

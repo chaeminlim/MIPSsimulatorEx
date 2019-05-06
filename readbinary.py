@@ -6,8 +6,8 @@ class readbinary:
     def __init__(self):
         self.codeList = []
 
-    def openreadfile(self):
-        f = open('binaries/as_ex02_logic.bin', 'rb')
+    def openreadfile(self, inst_name):
+        f = open(inst_name, 'rb')
         return f
 
     def closefile(self, f):
