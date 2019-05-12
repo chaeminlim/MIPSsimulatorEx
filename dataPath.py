@@ -261,17 +261,3 @@ class dataPath:
 
         return decodedList
 ####for test#####
-if __name__ == "__main__":
-
-    dp = dataPath(4)
-    dp.run()
-    i = 0
-
-    while True:
-        dp.step()
-        print(dp.Registers)
-        #print("Return register %08x" %dp.Registers[31])
-        print("instruction     %08x" %dp.inst_log[i])
-        i += 1
-
-

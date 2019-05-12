@@ -65,14 +65,3 @@ class readbinary:
             }.get(instr >> 26, '없음')
 
 
-
-if __name__ == "__main__":
-
-    file1 = readbinary()
-    filepointer = file1.openreadfile()
-    file1.changeEndian(filepointer)
-    print(file1.codeList)
-
-    for i in range(0, len(file1.codeList)):
-        opcode = file1.checkOpcode(file1.codeList[i])
-        print(opcode)
