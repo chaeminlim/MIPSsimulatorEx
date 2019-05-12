@@ -27,6 +27,8 @@ class dataPath:
         self.ProgramCounter = 0x00400000
         self.inst_log = []
         self.Registers_log = []
+        self.R_type = ['add', 'sub', 'and', 'jr', 'sll', 'sra', 'srl', 'syscall', 'or',
+                       'nor', 'xor', 'addu']
 
         if inst_number == 2:
             self.file_name = "binaries/as_ex02_logic.bin"
@@ -37,17 +39,15 @@ class dataPath:
 
     def run(self):
 
-        R_type = ['add', 'sub', 'and', 'jr', 'sll', 'sra', 'srl', 'syscall', 'or',
-                  'nor', 'xor', 'addu']
-        # 메모리 객체 생성
-        Mem = MemoryAccess()
-        Mem.stackMEM[0xff1f8] = 0x2
+       # 메모리 객체 생성
+        self.Mem = MemoryAccess()
+        self.Mem.stackMEM[0xff1f8] = 0x2
         # 파일 읽어오기
-        readBin = readbinary()
-        readBin.changeEndian(readBin.openreadfile(self.file_name))
+        self.readBin = readbinary()
+        self.readBin.changeEndian(self.readBin.openreadfile(self.file_name))
         # 4바이트 씩 나누어 리스트에 저장됨
 
-        value = 0
+
         self.F_ProgramCounter = 0x00400000
 
         for i in range(0, 9):
@@ -57,22 +57,24 @@ class dataPath:
                 0x00c23021, 0x0c100009,
                 0x00000000, 0x3402000a,
                 0x0000000c]
-            Mem.MEM(self.F_ProgramCounter,sys_list[i], 1 ,2)
+            self.Mem.MEM(self.F_ProgramCounter,sys_list[i], 1 ,2)
             self.F_ProgramCounter += 4
 
-        for i in range(2, len(readBin.codeList), 1):
-            Mem.MEM(self.ProgramCounter+0x24, readBin.codeList[i], 1, 2) #24부터 저장
+        for i in range(2, len(self.readBin.codeList), 1):
+            self.Mem.MEM(self.ProgramCounter+0x24, self.readBin.codeList[i], 1, 2) #24부터 저장
             self.ProgramCounter += 4
 
         # 저장 후 프로그램 카운터 초기화
         self.ProgramCounter = 0x00400000
         #디코딩
-        while True:
+    def step(self):
             z = 1
+            value = 0
+
             #alu 객체 생성
             alu = ALU()
             # 명령어 하나씩 읽어오기
-            value = Mem.MEM(self.ProgramCounter, value, 0, 2)
+            value = self.Mem.MEM(self.ProgramCounter, value, 0, 2)
             #log appending
             self.inst_log.append(value)
             list1 = []
@@ -80,8 +82,8 @@ class dataPath:
             self.Registers_log.append(list1)
 
             # opCode를 해석
-            opCode = readBin.checkOpcode(value)
-            if opCode in R_type:  # r 타입일때
+            opCode = self.readBin.checkOpcode(value)
+            if opCode in self.R_type:  # r 타입일때
 
                 rs = self.Registers[getRs(value)]
                 rt = self.Registers[getRt(value)]
@@ -89,7 +91,8 @@ class dataPath:
 
                 if getFunct(value) == 8: #jr
                     self.ProgramCounter = self.Registers[31]
-                    continue
+                    return 0
+                    #continue
                 elif getFunct(value) == 32: #if add
                     control = 0x8
                     self.Registers[getRd(value)] = alu.ALU_main(rs, rt, control, z)
@@ -128,7 +131,8 @@ class dataPath:
                     self.Registers[getRd(value)] = alu.ALU_main(shift_amt, rt, control, z)
                 elif getFunct(value) == 12: #syscall
                     if self.Registers[2] == 10:
-                        break
+                        print("end")
+                        #break
 
 
 
@@ -136,7 +140,8 @@ class dataPath:
                 if opCode == "j":
                     address = getAddress(value)
                     self.ProgramCounter = (self.ProgramCounter & 0xF0000000) | ((address + 9) << 2)
-                    continue
+                    return 0
+                    #continue
                 #
                 elif opCode == "jal":
                     address = getAddress(value)
@@ -145,7 +150,8 @@ class dataPath:
                         self.ProgramCounter = (self.ProgramCounter & 0xF0000000) | ((address) << 2)
                     else:
                         self.ProgramCounter = (self.ProgramCounter & 0xF0000000) | ((address + 9) << 2)
-                    continue
+                    return 0
+                    #continue
                 elif opCode == "beq":
                     rs = self.Registers[getRs(value)]
                     rt = self.Registers[getRt(value)]
@@ -155,7 +161,8 @@ class dataPath:
                         self.ProgramCounter = self.ProgramCounter + (offset << 2)
                     elif alu.ALU_main(rs, rt, control, z) != 0:
                         self.ProgramCounter += 4
-                    continue
+                    return 0
+                    #continue
                 elif opCode == "bne" :
                     rs = self.Registers[getRs(value)]
                     rt = self.Registers[getRt(value)]
@@ -165,7 +172,8 @@ class dataPath:
                         self.ProgramCounter = self.ProgramCounter + (offset << 2)
                     elif alu.ALU_main(rs, rt, control, z) == 0:
                         self.ProgramCounter += 4
-                    continue
+                    return 0
+                    #continue
 
                 elif opCode == "lw":
 
@@ -174,14 +182,14 @@ class dataPath:
                     control = 0x8 # add
                     val = 0
 
-                    self.Registers[getRt(value)] = Mem.MEM(alu.ALU_main(rs, offset, control, z), val, 0, 2)
+                    self.Registers[getRt(value)] = self.Mem.MEM(alu.ALU_main(rs, offset, control, z), val, 0, 2)
 
                 elif opCode == "sw":
                     rs = self.Registers[getRs(value)]
                     rt = self.Registers[getRt(value)]
                     offset = getOffset(value)
                     control = 0x8 #add
-                    Mem.MEM(alu.ALU_main(rs, offset, control, z), rt, 1, 2)
+                    self.Mem.MEM(alu.ALU_main(rs, offset, control, z), rt, 1, 2)
 
                 elif opCode == "addiu" :
                     control = 0x8 # add
@@ -200,17 +208,70 @@ class dataPath:
                     offset = getOffset(value)
                     self.Registers[getRt(value)] = alu.ALU_main(offset, 16, control, z)
 
-
-                rs = self.Registers[getRs(value)]
-                rt = self.Registers[getRt(value)]
-                offset = getOffset(value)
-
             self.ProgramCounter += 4
-            ###time.sleep(0.1)
-            continue
+            #time.sleep(0.5)
+            #continue
+    def decodeInstr(self):
+        Memstart = 0x00400000
+        length = len(self.readBin.codeList) + 8
+        decodedList = []
+        for i in range(length):
+            instr_hex = self.Mem.MEM(Memstart, "", 0, 2)
+            decodedLine = self.readBin.checkOpcode(instr_hex)
+            if decodedLine in self.R_type:
+                if decodedLine == "syscall":
+                    decodedLine = decodedLine
+
+                elif decodedLine == "jr":
+                    decodedLine += str(getRd(instr_hex))
+                else:
+                    decodedLine += " $" + str(getRd(instr_hex)) + ", "
+                    decodedLine += "$" + str(getRs(instr_hex)) + ", "
+                    decodedLine += "$" + str(getRt(instr_hex))
+
+            elif decodedLine == "jal" or decodedLine == "j":
+                address = getAddress(instr_hex)*4
+                if not address == 0x00400024:
+                    address = getAddress(instr_hex)*4 + 0x20
+                adrs = "0x%08X" % (address)
+                decodedLine +=  " " + str(adrs)
 
 
+            elif decodedLine == "lw" or decodedLine == "sw":
+                offset = getOffset(instr_hex)
+                if offset > 0x7fff:
+                    offset -= 0x10000
+                    #offset = (-offset) + (-offset)
+                decodedLine += " $" + str(getRt(instr_hex)) +", "
+                decodedLine +=  str(offset)
+                decodedLine += "($" + str(getRs(instr_hex))+ ")"
 
+            else:
+                offset = getOffset(instr_hex)
+                if offset >= 0x7fff:
+                    offset -= 0x10000
+                    #offset = (-offset) + (-offset)
+                decodedLine += " $" + str(getRt(instr_hex)) + ", "
+                decodedLine += "$" + str(getRs(instr_hex)) + ", "
+                decodedLine +=str(offset)
 
+            print()
+            decodedList.append(decodedLine)
+            Memstart += 0x4
+
+        return decodedList
+####for test#####
+if __name__ == "__main__":
+
+    dp = dataPath(4)
+    dp.run()
+    i = 0
+
+    while True:
+        dp.step()
+        print(dp.Registers)
+        #print("Return register %08x" %dp.Registers[31])
+        print("instruction     %08x" %dp.inst_log[i])
+        i += 1
 
 
