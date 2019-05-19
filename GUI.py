@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel,\
     QVBoxLayout,QGroupBox, QMainWindow, QLineEdit,QMessageBox,\
-    QHBoxLayout, QBoxLayout, QScrollArea, QPushButton, QAction, qApp
+    QHBoxLayout, QBoxLayout, QScrollArea, QPushButton, QAction, qApp, QFileDialog
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
 
@@ -14,8 +14,8 @@ prev_PC = 0
 class MyWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.run_inst = dataPath(4)
-        self.run_inst.run()
+        self.run_inst = dataPath()
+        self.run_inst.setup()
         #self.set_registers()
         self.makeWidget()
         self.show()
@@ -25,7 +25,6 @@ class MyWindow(QWidget):
 
         self.label_R = QLabel()
         self.label_I = QLabel()
-        self.run_inst.run()
         #임시로 정보를 받아옵니다.
         self.R_list = self.run_inst.Registers
         regis_len = len(self.run_inst.Registers_log)
@@ -52,15 +51,23 @@ class MyWindow(QWidget):
         self.layout_main.addLayout(self.layout_total)
         self.setLayout(self.layout_main)
         self.init_widget()
+        self.init_button()
 
-    def init_widget(self):
-        self.setWindowTitle("Layout Basic")
-        self.setGeometry(800, 200, 500, 800)
+    def init_button(self):
+
         btn_step = QPushButton("step")
+        btn_file = QPushButton("loadFile")
+
+        self.layout_buttons.addWidget(btn_file)
         self.layout_buttons.addWidget(btn_step)
         btn_step.clicked.connect(self.btn_step_clicked)
+        btn_file.clicked.connect(self.btn_file_clicked)
         # toolbars
 
+    def init_widget(self):
+
+        self.setWindowTitle("Layout Basic")
+        self.setGeometry(800, 200, 500, 800)
         #
         self.label_R.setText("PC: 0x%08X\nR0: 0x%08X\nR1: 0x%08X\nR2: 0x%08X\nR3: 0x%08X\n"
                              "R4: 0x%08X\nR5: 0x%08X\nR6: 0x%08X\nR7: 0x%08X\n"
@@ -80,22 +87,12 @@ class MyWindow(QWidget):
                                self.R_list[28],self.R_list[29],self.R_list[30],self.R_list[31],)
                              )
         #
-
-        #
         self.scrollArea1.setWidget(self.label_R)
         self.layout_Register.addWidget(self.scrollArea1)
 ####################################################################
-
         sgruopbox = QGroupBox()
         layout_groupbox = QVBoxLayout(sgruopbox)
-        ####명령어 불러오기 - 메모리에 접근
 
-        #readbin = readbinary()
-        #readbin.changeEndian(readbin.openreadfile("binaries/as_ex04_fct.bin"))
-###
-
-
-###
         self.decodedList = self.run_inst.decodeInstr()
 
         self.instr = [0]*(len(self.run_inst.readBin.codeList) + 8)
@@ -111,11 +108,7 @@ class MyWindow(QWidget):
             layout_groupbox.addLayout(layout_Horiz)
             Memstart += 0x4
 
-
-
         self.scrollArea2.setWidget(sgruopbox)
-
-
         self.layout_Instruction.addWidget(self.scrollArea2)
 
     def btn_step_clicked(self):
@@ -149,24 +142,22 @@ class MyWindow(QWidget):
         #print("%08x" % (self.run_inst.ProgramCounter - 0x00400000)/4 - 1)
         #print("%08x" % (self.run_inst.ProgramCounter - 0x00400000)/4)
 
-        self.instr[prev_index].setStyleSheet("background-color: white")
+        self.instr[prev_index].setStyleSheet("background-color: None")
         self.instr[index].setStyleSheet("background-color: red")
 
         if self.decodedList[index] == "syscall":
-            QMessageBox.about(self, "알림", "syscall 10 호출로 종료되었습니다.")
+            if self.R_list[2] == 10:
+                QMessageBox.about(self, "알림", "syscall %d 호출로 종료되었습니다." %(self.R_list[2]))
 
-        '''        
-        self.lb_1.setStyleSheet("background-color: yellow")
-        self.lb_2.setStyleSheet("background-color: red")
-        self.lb_3.setStyleSheet("background-color: blue")
-        self.lb_4.setStyleSheet("background-color: pink")
-        self.lb_5.setStyleSheet("background-color: grey")
 
-        self.layout_2.addWidget(self.lb_1)
-        self.layout_2.addWidget(self.lb_2)
-        self.layout_3.addWidget(self.lb_3)
-        self.layout_3.addWidget(self.lb_4)
-        self.layout_3.addWidget(self.lb_5)'''
+    def btn_file_clicked(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getOpenFileName(self, "바이너리 파일을 열어주세요", "",
+                                                  "All Files (*);;Binary Files (*.bin)", options=options)
+        if fileName:
+            self.run_inst.run(fileName)
+            self.init_widget()
 
 
 

@@ -21,7 +21,7 @@ def getAddress(value):
 def getFunct(value):
     return value & 0x0000003F
 class dataPath:
-    def __init__(self, inst_number):
+    def __init__(self):
         self.Registers = [0 for _ in range(32)]
         self.Registers[29] = 0x7ffff1f8
         self.ProgramCounter = 0x00400000
@@ -30,24 +30,27 @@ class dataPath:
         self.R_type = ['add', 'sub', 'and', 'jr', 'sll', 'sra', 'srl', 'syscall', 'or',
                        'nor', 'xor', 'addu']
 
-        if inst_number == 2:
-            self.file_name = "binaries/as_ex02_logic.bin"
-        elif inst_number == 3:
-            self.file_name = "binaries/as_ex03_ifelse.bin"
-        elif inst_number == 4:
-            self.file_name = "binaries/as_ex04_fct.bin"
 
-    def run(self):
+    def run(self, fileDirectory=""):
 
        # 메모리 객체 생성
-        self.Mem = MemoryAccess()
         self.Mem.stackMEM[0xff1f8] = 0x2
         # 파일 읽어오기
-        self.readBin = readbinary()
-        self.readBin.changeEndian(self.readBin.openreadfile(self.file_name))
+        self.readBin.changeEndian(self.readBin.openreadfile(fileDirectory))
         # 4바이트 씩 나누어 리스트에 저장됨
 
+        for i in range(2, len(self.readBin.codeList), 1):
+            self.Mem.MEM(self.ProgramCounter + 0x24, self.readBin.codeList[i], 1, 2)  # 0x24부터 저장
+            self.ProgramCounter += 4
 
+            # 저장 후 프로그램 카운터 초기화
+        self.ProgramCounter = 0x00400000
+
+    # 디코딩
+
+    def setup(self):
+
+        self.Mem = MemoryAccess()
         self.F_ProgramCounter = 0x00400000
 
         for i in range(0, 9):
@@ -59,14 +62,9 @@ class dataPath:
                 0x0000000c]
             self.Mem.MEM(self.F_ProgramCounter,sys_list[i], 1 ,2)
             self.F_ProgramCounter += 4
+            self.readBin = readbinary()
 
-        for i in range(2, len(self.readBin.codeList), 1):
-            self.Mem.MEM(self.ProgramCounter+0x24, self.readBin.codeList[i], 1, 2) #24부터 저장
-            self.ProgramCounter += 4
 
-        # 저장 후 프로그램 카운터 초기화
-        self.ProgramCounter = 0x00400000
-        #디코딩
     def step(self):
             z = 1
             value = 0
