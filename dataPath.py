@@ -1,6 +1,7 @@
 from ALU import ALU
 from readbinary import readbinary
 from memoryAccess import MemoryAccess
+from decodeAsm import decodeAssembly
 import sys
 import os
 import time
@@ -31,29 +32,35 @@ class dataPath:
                        'nor', 'xor', 'addu']
 
 
-    def run(self, fileDirectory=""):
-
-       # 메모리 객체 생성
+    def run(self, fileDirectory="", isAssembly = None):
+        # 메모리 객체 생성
         self.Mem.stackMEM[0xff1f8] = 0x2
-        # 파일 읽어오기
-        self.readBin.changeEndian(self.readBin.openreadfile(fileDirectory))
-        # 4바이트 씩 나누어 리스트에 저장됨
 
-        for i in range(2, len(self.readBin.codeList), 1):
-            self.Mem.MEM(self.ProgramCounter + 0x24, self.readBin.codeList[i], 1, 2)  # 0x24부터 저장
-            self.ProgramCounter += 4
+        if isAssembly == None:
+            # 파일 읽어오기
+            self.readBin.changeEndian(self.readBin.openreadfile(fileDirectory))
+            # 4바이트 씩 나누어 리스트에 저장됨
+            for i in range(2, len(self.readBin.codeList), 1):
+                self.Mem.MEM(self.ProgramCounter + 0x24, self.readBin.codeList[i], 1, 2)  # 0x24부터 저장
+                self.ProgramCounter += 4
+                # 저장 후 프로그램 카운터 초기화
+            self.ProgramCounter = 0x00400000
 
-            # 저장 후 프로그램 카운터 초기화
-        self.ProgramCounter = 0x00400000
+        if isAssembly == 1:
+            self.decodeAssembly.fopen(fileDirectory)
+            self.instList, a, _ = self.decodeAssembly.encode(self.Mem)
+            for i in range(len(self.instList)):
+                self.Mem.MEM(self.ProgramCounter + 0x24, self.instList[i], 1, 2)  # 0x24부터 저장
+                self.ProgramCounter += 4
 
-    # 디코딩
+            self.ProgramCounter = 0x00400000
 
     def setup(self):
 
         self.Mem = MemoryAccess()
         self.F_ProgramCounter = 0x00400000
 
-        for i in range(0, 9):
+        for i in range(9):
             sys_list = [
                 0x8fa40000, 0x27a50004,
                 0x24a60004, 0x00041080,
@@ -62,10 +69,11 @@ class dataPath:
                 0x0000000c]
             self.Mem.MEM(self.F_ProgramCounter,sys_list[i], 1 ,2)
             self.F_ProgramCounter += 4
-            self.readBin = readbinary()
+        self.readBin = readbinary()
+        self.decodeAssembly = decodeAssembly()
 
 
-    def step(self):
+    def step(self, isAssembly=None):
             z = 1
             value = 0
 
@@ -136,19 +144,26 @@ class dataPath:
 
             else:
                 if opCode == "j":
-                    address = getAddress(value)
-                    self.ProgramCounter = (self.ProgramCounter & 0xF0000000) | ((address + 9) << 2)
-                    return 0
+                    if isAssembly==1:
+                        address = getAddress(value)
+                        self.ProgramCounter = (self.ProgramCounter & 0xF0000000) | ((address) << 2)
+                        return 0
+                    else:
+                        address = getAddress(value)
+                        self.ProgramCounter = (self.ProgramCounter & 0xF0000000) | ((address+9) << 2)
+                        return 0
+
                     #continue
                 #
                 elif opCode == "jal":
                     address = getAddress(value)
                     self.Registers[31] = self.ProgramCounter + 4
-                    if value == 0x0c100009:
+                    if value == 0x0c100009 or isAssembly == 1:
                         self.ProgramCounter = (self.ProgramCounter & 0xF0000000) | ((address) << 2)
                     else:
                         self.ProgramCounter = (self.ProgramCounter & 0xF0000000) | ((address + 9) << 2)
                     return 0
+
                     #continue
                 elif opCode == "beq":
                     rs = self.Registers[getRs(value)]
@@ -179,8 +194,8 @@ class dataPath:
                     offset = getOffset(value)
                     control = 0x8 # add
                     val = 0
-
                     self.Registers[getRt(value)] = self.Mem.MEM(alu.ALU_main(rs, offset, control, z), val, 0, 2)
+
 
                 elif opCode == "sw":
                     rs = self.Registers[getRs(value)]
@@ -201,17 +216,28 @@ class dataPath:
                     offset = getOffset(value)
                     self.Registers[getRt(value)] = alu.ALU_main(rs, offset, control, z)
 
+                elif opCode == "xori" :
+                    control = 0xE
+                    rs = self.Registers[getRs(value)]
+                    offset = getOffset(value)
+                    self.Registers[getRt(value)] = alu.ALU_main(rs, offset, control, z)
+
                 elif opCode == "lui" :
                     control = 0x1
                     offset = getOffset(value)
-                    self.Registers[getRt(value)] = alu.ALU_main(offset, 16, control, z)
+                    self.Registers[getRt(value)] = alu.ALU_main(16, offset, control, z)
 
             self.ProgramCounter += 4
             #time.sleep(0.5)
             #continue
-    def decodeInstr(self):
+    def decodeInstr(self, isAssembly = None):
         Memstart = 0x00400000
-        length = len(self.readBin.codeList) + 8
+
+        if isAssembly == None:
+            length = len(self.readBin.codeList) + 9
+        elif isAssembly == 1:
+            length = len(self.instList) + 9
+
         decodedList = []
         for i in range(length):
             instr_hex = self.Mem.MEM(Memstart, "", 0, 2)
@@ -221,16 +247,25 @@ class dataPath:
                     decodedLine = decodedLine
 
                 elif decodedLine == "jr":
-                    decodedLine += str(getRd(instr_hex))
+                    decodedLine += " $" + str(getRs(instr_hex))
+
+                elif decodedLine in ['sll', 'sra', 'srl']:
+                    decodedLine += "$" + str(getRd(instr_hex)) + ","
+                    decodedLine += "$" + str(getRt(instr_hex)) + ","
+                    decodedLine +=  str(getShamt(instr_hex))
+
                 else:
                     decodedLine += " $" + str(getRd(instr_hex)) + ", "
                     decodedLine += "$" + str(getRs(instr_hex)) + ", "
                     decodedLine += "$" + str(getRt(instr_hex))
 
             elif decodedLine == "jal" or decodedLine == "j":
-                address = getAddress(instr_hex)*4
-                if not address == 0x00400024:
-                    address = getAddress(instr_hex)*4 + 0x20
+                if isAssembly==1:
+                    address = getAddress(instr_hex) * 4
+                else:
+                    address = getAddress(instr_hex) * 4
+                    if (not address == 0x00400024):
+                        address = getAddress(instr_hex)*4 + 0x24
                 adrs = "0x%08X" % (address)
                 decodedLine +=  " " + str(adrs)
 
@@ -253,7 +288,6 @@ class dataPath:
                 decodedLine += "$" + str(getRs(instr_hex)) + ", "
                 decodedLine +=str(offset)
 
-            print()
             decodedList.append(decodedLine)
             Memstart += 0x4
 

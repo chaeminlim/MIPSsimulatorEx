@@ -55,11 +55,13 @@ class ALU:
             if msb == 1:
                 y = y >> v
                 y = y | (0xFFFFFFFF << (32 - v))
-                return y
+                ret = y
+                return ret
             if msb == 0:
                 y = y >> v
-                return y
-        return y
+                ret = y
+                return ret
+        return ret
 
     def addSubstract(self, x, y, c10):
         if c10 < 0x0 or c10 > 0x3:

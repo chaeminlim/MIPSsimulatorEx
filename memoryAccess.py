@@ -32,7 +32,7 @@ class MemoryAccess:
 
         elif S == 1:
             if nRW == 0:
-                V = (pM[offset] | pM[offset + 1] << 8)
+                V = (pM[offset]) | (pM[offset + 1] << 8)
                 return V
             elif nRW == 1:
                 pM[offset] = V & 0x00ff
@@ -41,7 +41,7 @@ class MemoryAccess:
 
         elif S == 2: #fullword
             if nRW == 0:
-                V = pM[offset] | pM[offset + 1] << 8 | pM[offset + 2] << 16 | pM[offset + 3] << 24
+                V = pM[offset] | (pM[offset + 1] << 8) | (pM[offset + 2] << 16) | (pM[offset + 3] << 24)
                 return V
             elif nRW == 1:
                 pM[offset] = V & 0x000000ff

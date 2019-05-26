@@ -1,14 +1,14 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel,\
-    QVBoxLayout,QGroupBox, QMainWindow, QLineEdit,QMessageBox,\
+    QVBoxLayout,QGroupBox, QMainWindow, QLineEdit,QMessageBox, QTextEdit,\
     QHBoxLayout, QBoxLayout, QScrollArea, QPushButton, QAction, qApp, QFileDialog
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QFont
 
 from dataPath import dataPath
 from readbinary import *
 
-global prev_PC
+global prev_PC, isAssem
 
 prev_PC = 0
 class MyWindow(QWidget):
@@ -26,6 +26,8 @@ class MyWindow(QWidget):
         self.label_R = QLabel()
         self.label_I = QLabel()
         #임시로 정보를 받아옵니다.
+        self.label_R.setStyleSheet('QLabel { font-family: "Lucida Console", Monospace ;margin: 0; font-weight: normal;}')
+
         self.R_list = self.run_inst.Registers
         regis_len = len(self.run_inst.Registers_log)
         self.inst_len = len(self.run_inst.inst_log)
@@ -44,30 +46,38 @@ class MyWindow(QWidget):
         self.scrollArea1 = QScrollArea()
         self.scrollArea2 = QScrollArea()
 
+
         # 부모 레이아웃에 자식 레이아웃을 추가
         self.layout_total.addLayout(self.layout_Register)
         self.layout_total.addLayout(self.layout_Instruction)
         self.layout_main.addLayout(self.layout_buttons)
         self.layout_main.addLayout(self.layout_total)
         self.setLayout(self.layout_main)
+
         self.init_widget()
         self.init_button()
 
     def init_button(self):
 
         btn_step = QPushButton("step")
-        btn_file = QPushButton("loadFile")
+        btn_file = QPushButton("load BinaryFile")
+        btn_fileA = QPushButton('load AssemblyFile')
+        btn_step.setStyleSheet('QPushButton {background-color: #A3C1DA; color: white;}')
+        btn_file.setStyleSheet('QPushButton {background-color: #A3C1DA; color: white;}')
+        btn_fileA.setStyleSheet('QPushButton {background-color: #A3C1DA; color: white;}')
 
         self.layout_buttons.addWidget(btn_file)
         self.layout_buttons.addWidget(btn_step)
+        self.layout_buttons.addWidget(btn_fileA)
         btn_step.clicked.connect(self.btn_step_clicked)
         btn_file.clicked.connect(self.btn_file_clicked)
+        btn_fileA.clicked.connect(self.btn_fileA_clicked)
         # toolbars
 
-    def init_widget(self):
+    def init_widget(self, isAssembly=None):
 
         self.setWindowTitle("Layout Basic")
-        self.setGeometry(800, 200, 500, 800)
+        self.setGeometry(800, 200, 600, 800)
         #
         self.label_R.setText("PC: 0x%08X\nR0: 0x%08X\nR1: 0x%08X\nR2: 0x%08X\nR3: 0x%08X\n"
                              "R4: 0x%08X\nR5: 0x%08X\nR6: 0x%08X\nR7: 0x%08X\n"
@@ -93,29 +103,60 @@ class MyWindow(QWidget):
         sgruopbox = QGroupBox()
         layout_groupbox = QVBoxLayout(sgruopbox)
 
-        self.decodedList = self.run_inst.decodeInstr()
+        if isAssembly == None:
+            self.decodedList = self.run_inst.decodeInstr()
+            length = len(self.run_inst.readBin.codeList) + 9
+            self.instr = [0]*(length)
+            self.decoded = [0]*(length)
+            Memstart = 0x00400000
+            for i in range(length):
+                layout_Horiz = QHBoxLayout()
+                self.instr[i] = QLabel("[%08X] 0x%08X"
+                               % (Memstart, self.run_inst.Mem.MEM(Memstart, "", 0, 2)))
+                self.decoded[i] = QLabel("%s" % self.decodedList[i])
+                self.instr[i].setStyleSheet(
+                    'QLabel { font-family: "Lucida Console", Monospace ;margin: 0; font-weight: normal;}')
+                self.decoded[i].setStyleSheet(
+                    'QLabel { font-family: "Lucida Console", Monospace ;margin: 0; font-weight: bold;}')
 
-        self.instr = [0]*(len(self.run_inst.readBin.codeList) + 8)
-        self.decoded = [0]*(len(self.run_inst.readBin.codeList) + 8)
-        Memstart = 0x00400000
-        for i in range(len(self.run_inst.readBin.codeList)+8):
-            layout_Horiz = QHBoxLayout()
-            self.instr[i] = QLabel("[%08X] 0x%08X"
-                           % (Memstart, self.run_inst.Mem.MEM(Memstart, "", 0, 2)))
-            self.decoded[i] = QLabel("%s" % self.decodedList[i])
-            layout_Horiz.addWidget(self.instr[i])
-            layout_Horiz.addWidget(self.decoded[i])
-            layout_groupbox.addLayout(layout_Horiz)
-            Memstart += 0x4
+
+                layout_Horiz.addWidget(self.instr[i])
+                layout_Horiz.addWidget(self.decoded[i])
+                layout_groupbox.addLayout(layout_Horiz)
+                Memstart += 0x4
+
+        elif isAssembly == 1:
+            self.decodedList = self.run_inst.decodeInstr(1)
+            length = len(self.run_inst.instList) + 9
+            self.instr = [0] * length
+            self.decoded = [0] * length
+            Memstart = 0x00400000
+            instval = []
+            for i in range(length):
+                layout_Horiz = QHBoxLayout()
+                self.instr[i] = QLabel("[%08X] 0x%08X"
+                                % (Memstart, self.run_inst.Mem.MEM(Memstart, "", 0, 2)))
+                self.decoded[i] = QLabel("%s" % self.decodedList[i])
+                self.instr[i].setStyleSheet(
+                    'QLabel { font-family: "Lucida Console", Monospace ;margin: 0; font-weight: normal;}')
+                self.decoded[i].setStyleSheet(
+                    'QLabel { font-family: "Lucida Console", Monospace ;margin: 0; font-weight: bold;}')
+
+                instval.append(self.run_inst.Mem.MEM(Memstart, "", 0, 2))
+                layout_Horiz.addWidget(self.instr[i])
+                layout_Horiz.addWidget(self.decoded[i])
+                layout_groupbox.addLayout(layout_Horiz)
+                Memstart += 0x4
+
 
         self.scrollArea2.setWidget(sgruopbox)
         self.layout_Instruction.addWidget(self.scrollArea2)
 
     def btn_step_clicked(self):
-        global prev_PC
+        global prev_PC, isAssem
         prev_PC = self.run_inst.ProgramCounter
 
-        self.run_inst.step()
+        self.run_inst.step(isAssem)
         self.label_R.setText("PC: 0x%08X\nR0: 0x%08X\nR1: 0x%08X\nR2: 0x%08X\nR3: 0x%08X\n"
                              "R4: 0x%08X\nR5: 0x%08X\nR6: 0x%08X\nR7: 0x%08X\n"
                              "R8: 0x%08X\nR9: 0x%08X\nR10: 0x%08X\nR11: 0x%08X\n"
@@ -148,9 +189,13 @@ class MyWindow(QWidget):
         if self.decodedList[index] == "syscall":
             if self.R_list[2] == 10:
                 QMessageBox.about(self, "알림", "syscall %d 호출로 종료되었습니다." %(self.R_list[2]))
+            if self.R_list[2] == 1:
+                QMessageBox.about(self, "알림", "syscall 1 :\n %d" %(self.R_list[4] - 0x100000000))
 
 
     def btn_file_clicked(self):
+        global isAssem
+        isAssem= None
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         fileName, _ = QFileDialog.getOpenFileName(self, "바이너리 파일을 열어주세요", "",
@@ -159,11 +204,23 @@ class MyWindow(QWidget):
             self.run_inst.run(fileName)
             self.init_widget()
 
+    def btn_fileA_clicked(self):
+        global isAssem
+        isAssem = 1
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getOpenFileName(self, "어셈블리 파일을 열어주세요", "",
+                                                  "All Files (*);;Assembly Files (*.s)", options=options)
+        if fileName:
+            self.run_inst.run(fileName, 1)
+            self.init_widget(1)
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv) #sys.argv는 디렉토리를 나타낸다.
     myWindow = MyWindow()
-    app.exec_() # 이벤트 루프에 진입
-
+    try:
+        app.exec_() # 이벤트 루프에 진입
+    except Exception as e:
+        print(e)
 
